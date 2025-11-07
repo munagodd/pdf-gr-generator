@@ -2,4 +2,4 @@ flask
 qrcode
 pillow
 gunicorn
-qrcode[svg]
+qrcode[pil]==7.4.2
