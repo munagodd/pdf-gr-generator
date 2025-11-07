@@ -1,7 +1,7 @@
 from flask import Flask, request, send_from_directory, render_template_string, url_for
 import os
 import qrcode
-from qrcode.image.svg import SvgImage
+from qrcode.image.pil import PilImage
 
 app = Flask(__name__)
 
@@ -14,33 +14,40 @@ def index():
     if request.method == "POST":
         pdf = request.files["pdf"]
         if pdf:
-            # Save uploaded PDF
+            # Save the uploaded PDF
             filepath = os.path.join(UPLOAD_FOLDER, pdf.filename)
             pdf.save(filepath)
 
-            # Generate file URL for the PDF
-            file_url = url_for("serve_pdf", filename=pdf.filename, _external=True)
+            # Generate viewer URL (not direct PDF)
+            viewer_url = url_for("view_pdf", filename=pdf.filename, _external=True)
 
-            # Generate SVG QR code
-            svg_filename = f"{pdf.filename}_qr.svg"
-            svg_path = os.path.join(UPLOAD_FOLDER, svg_filename)
-            img = qrcode.make(file_url, image_factory=SvgImage)
-            img.save(svg_path)
+            # Generate high-resolution PNG QR code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_H,
+                box_size=15,   # bigger box size = higher resolution
+                border=4,
+            )
+            qr.add_data(viewer_url)
+            qr.make(fit=True)
 
-            # Return HTML response
+            img = qr.make_image(fill_color="black", back_color="white", image_factory=PilImage)
+            png_filename = f"{pdf.filename}_qr.png"
+            png_path = os.path.join(UPLOAD_FOLDER, png_filename)
+            img.save(png_path)
+
+            # Return HTML with QR + links
             return f"""
             <h2>✅ QR Code Generated Successfully!</h2>
-            <p>Scan the QR code to open your uploaded PDF:</p>
-            <object data='/uploads/{svg_filename}' type='image/svg+xml' width='250' height='250'></object>
+            <p>Scan this QR code to view your PDF in the browser:</p>
+            <img src='/uploads/{png_filename}' width='250' height='250' alt='QR Code'><br><br>
 
-            <p>
-                <a href='/uploads/{svg_filename}' download>⬇️ Download SVG QR Code</a><br>
-                <a href='{file_url}' target='_blank'>📄 View Uploaded PDF</a><br>
-                <a href='/'>🔁 Upload Another PDF</a>
-            </p>
+            <a href='/uploads/{png_filename}' download>⬇️ Download PNG QR Code</a><br>
+            <a href='{viewer_url}' target='_blank'>📄 View PDF in Browser</a><br>
+            <a href='/'>🔁 Upload Another PDF</a>
             """
 
-    # Default upload page
+    # Default upload form
     return render_template_string("""
     <h2>📤 Upload PDF to Generate QR Code</h2>
     <form method="POST" enctype="multipart/form-data">
@@ -50,20 +57,57 @@ def index():
     """)
 
 
+@app.route("/view/<path:filename>")
+def view_pdf(filename):
+    """Display a webpage that embeds the uploaded PDF."""
+    pdf_url = url_for("serve_file", filename=filename, _external=True)
+    return render_template_string(f"""
+    <html>
+      <head>
+        <title>Document Viewer</title>
+        <style>
+          body {{
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f7f7f7;
+            margin: 20px;
+          }}
+          iframe {{
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            width: 90%;
+            height: 800px;
+          }}
+        </style>
+      </head>
+      <body>
+        <h2>📄 Viewing: {filename}</h2>
+        <iframe src="{pdf_url}" allowfullscreen></iframe>
+        <p><a href="/">⬅️ Back to Upload Page</a></p>
+      </body>
+    </html>
+    """)
+
+
 @app.route("/uploads/<path:filename>")
-def serve_pdf(filename):
-    """Serve uploaded files (PDFs and SVGs)."""
-    mimetype = (
-        "application/pdf" if filename.lower().endswith(".pdf") else "image/svg+xml"
-    )
-    return send_from_directory(
+def serve_file(filename):
+    """Serve uploaded files (PDFs and PNGs) inline in browser."""
+    if filename.lower().endswith(".pdf"):
+        mimetype = "application/pdf"
+    elif filename.lower().endswith(".png"):
+        mimetype = "image/png"
+    else:
+        mimetype = "application/octet-stream"
+
+    response = send_from_directory(
         UPLOAD_FOLDER,
         filename,
         as_attachment=False,
         mimetype=mimetype
     )
+    response.headers["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
 
 
 if __name__ == "__main__":
-    # Use Render's assigned port or default to 5000
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
