@@ -1,5 +1,3 @@
 flask
 qrcode
 pillow
-gunicorn
-qrcode[pil]==7.4.2
