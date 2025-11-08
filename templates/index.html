@@ -1,26 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>PDF to QR Generator</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 60px; }
-        input[type=file] { margin: 10px; }
-        img { margin-top: 20px; width: 250px; height: 250px; }
-        a { display: block; margin-top: 15px; color: #007BFF; }
-    </style>
+  <title>PDF QR Generator</title>
 </head>
 <body>
-    <h1>Upload a PDF to Generate a QR Code</h1>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="pdf" accept="application/pdf" required>
-        <button type="submit">Generate QR Code</button>
-    </form>
+  <h2>Upload PDF to Generate QR Code</h2>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="file" name="pdf" accept=".pdf" required>
+    <button type="submit">Upload & Generate</button>
+  </form>
 
-    {% if qr_path %}
-        <h2>QR Code:</h2>
-        <img src="{{ qr_path }}" alt="QR Code">
-        <a href="{{ pdf_url }}" target="_blank">Open PDF in browser</a>
-    {% endif %}
+  {% if qr_path %}
+    <h3>QR Code Generated!</h3>
+    <img src="{{ qr_path }}" alt="QR Code" width="250">
+    <p><a href="{{ pdf_url }}" target="_blank">Open PDF</a></p>
+  {% endif %}
 </body>
 </html>
