@@ -3,11 +3,11 @@ import os, qrcode, cloudinary, cloudinary.uploader
 
 app = Flask(__name__)
 
-# ✅ Cloudinary configuration (replace with your actual credentials)
+# ✅ Cloudinary configuration using environment variables
 cloudinary.config(
-    cloud_name=os.getenv("dcxzqky5b"),
-    api_key=os.getenv("747414571885432"),
-    api_secret=os.getenv("Hwi2tQ4Ax52z1A7jEQ_DP737SXw"),
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True
 )
 
@@ -16,7 +16,7 @@ def index():
     if request.method == "POST":
         pdf = request.files["pdf"]
         if pdf:
-            # Upload to Cloudinary
+            # Upload PDF to Cloudinary
             upload_result = cloudinary.uploader.upload(
                 pdf,
                 resource_type="raw",   # ensures Cloudinary accepts PDF
@@ -25,7 +25,7 @@ def index():
 
             pdf_url = upload_result["secure_url"]
 
-            # Generate high-res QR code
+            # Generate high-res QR code pointing to Cloudinary URL
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_H,
