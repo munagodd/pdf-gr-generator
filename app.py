@@ -9,6 +9,9 @@ app = Flask(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
+# Replace with your shared folder ID (must be shared with service account)
+SHARED_FOLDER_ID = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
+
 def get_drive_service():
     creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
     if not creds_json:
@@ -20,7 +23,7 @@ def get_drive_service():
     return service
 
 def upload_file_to_drive(service, file_bytes, filename, mimetype="application/octet-stream", folder_id=None):
-    """Uploads a file to Google Drive and returns the file ID and shareable link."""
+    """Uploads a file to a shared folder in Google Drive and returns its public link."""
     file_metadata = {"name": filename}
     if folder_id:
         file_metadata["parents"] = [folder_id]
@@ -45,11 +48,17 @@ def index():
         if pdf:
             service = get_drive_service()
 
-            # Upload PDF
+            # Upload PDF to shared folder
             pdf_bytes = BytesIO(pdf.read())
-            pdf_id, pdf_url = upload_file_to_drive(service, pdf_bytes, pdf.filename, mimetype="application/pdf")
+            pdf_id, pdf_url = upload_file_to_drive(
+                service,
+                pdf_bytes,
+                pdf.filename,
+                mimetype="application/pdf",
+                folder_id=SHARED_FOLDER_ID
+            )
 
-            # Generate QR code for PDF
+            # Generate QR code for PDF URL
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -64,7 +73,14 @@ def index():
             img.save(qr_bytes, format="PNG")
             qr_bytes.seek(0)
 
-            qr_id, qr_url = upload_file_to_drive(service, qr_bytes, f"QR_{pdf.filename}.png", mimetype="image/png")
+            # Upload QR code to the same shared folder
+            qr_id, qr_url = upload_file_to_drive(
+                service,
+                qr_bytes,
+                f"QR_{pdf.filename}.png",
+                mimetype="image/png",
+                folder_id=SHARED_FOLDER_ID
+            )
 
             return render_template("index.html", pdf_url=pdf_url, qr_url=qr_url)
 
